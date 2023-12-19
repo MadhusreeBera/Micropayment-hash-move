@@ -1,0 +1,16 @@
+[package]
+name = "micropayment_hash"
+version = "1.0.0"
+authors = []
+
+[addresses]
+self='ebfa40fbb2a44b47af52d4bcc44a2d9ebb36bc72cdf55f037b20fcf6fc6d3ca8'
+
+[dev-addresses]
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dev-dependencies]
