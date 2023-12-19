@@ -20,7 +20,7 @@ module self::micropayment_hash{
         sender_address: address,
         receiver_address: address,
         initial_amount: u64,
-        no_of_tokens: u64,
+        total_tokens: u64,
         redeemed: bool,
         trust_anchor: String,
     }
@@ -50,7 +50,7 @@ module self::micropayment_hash{
         });
     }
 
-    public entry fun create_channel (sender: &signer, receiver_address: address, initial_amount: u64,no_of_tokens:u64,  trust_anchor: String) acquires GlobalTable {
+    public entry fun create_channel (sender: &signer, receiver_address: address, initial_amount: u64,total_tokens:u64,  trust_anchor: String) acquires GlobalTable {
        let sender_address = signer::address_of(sender);
         let global_table_resource = borrow_global_mut<GlobalTable>(MODULE_OWNER);
         let counter = global_table_resource.channel_counter + 1;
@@ -65,7 +65,7 @@ module self::micropayment_hash{
             sender_address: sender_address,
             receiver_address: receiver_address,
             initial_amount: initial_amount,
-            no_of_tokens: no_of_tokens,
+            total_tokens: total_tokens,
             trust_anchor: trust_anchor,
             redeemed: false
         };
@@ -74,15 +74,40 @@ module self::micropayment_hash{
         global_table_resource.channel_counter = counter;
     }
 
-    public entry fun redeem_channel () {
+    public entry fun redeem_channel (final_token: String, no_of_tokens: u64, channel_id: u64) acquires GlobalTable {
 
+        let global_table_resource = borrow_global_mut<GlobalTable>(MODULE_OWNER);
+        let channel = table::borrow_mut(&mut global_table_resource.channel_table, channel_id);
+        let total_tokens = channel.total_tokens;
+        let initial_amount = channel.initial_amount;
+        let trust_anchor_vec = *std::string::bytes(&channel.trust_anchor);
+
+        let hash = calculate_hash(final_token, channel.trust_anchor, no_of_tokens, channel_id);
+
+        if(hash == trust_anchor_vec){
+            let receiver_amount = (no_of_tokens/total_tokens) * initial_amount;
+            let sender_amount = initial_amount - receiver_amount;
+
+            coin::transfer<AptosCoin>(MODULE_OWNER, channel.receiver_address, receiver_amount);
+            coin::transfer<AptosCoin>(MODULE_OWNER, channel.sender_address, sender_amount);
+
+            channel.redeemed = true;
+        }
+        else{
+
+            channel.redeemed = false;
+        }
     }
 
-    fun calculate_amount (initial_amount: u64, final_token: String, trust_anchor: String, no_of_tokens: u64) {
-        let token = final_token;
-        while (no_of_tokens > 0) {
-            token = keccak256(vector[token]);
+    fun calculate_hash ( final_token: String, trust_anchor: String, no_of_tokens: u64, channel_id: u64): bool {
+        let input = *std::string::bytes(&final_token);
+        let hash = keccak256(input);
+        while (no_of_tokens > 1) {
+            hash = keccak256(input);
             no_of_tokens = no_of_tokens - 1;
+            input = hash;
         };
+        hash;
+        
     }
 }
