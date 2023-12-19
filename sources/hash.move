@@ -6,6 +6,7 @@ module self::micropayment_hash{
     use aptos_std::table::{Self, Table};
     use aptos_framework::aptos_coin::AptosCoin;
     use std::vector;
+    use aptos_std::aptos_hash::keccak256;
 
     const MODULE_OWNER:address = @self;
 
@@ -71,7 +72,17 @@ module self::micropayment_hash{
         // self::set_channel(sender_address, receiver_address, channel);
         table::upsert(&mut global_table_resource.channel_table, counter, new_channel);
         global_table_resource.channel_counter = counter;
-    
     }
 
+    public entry fun redeem_channel () {
+
+    }
+
+    fun calculate_amount (initial_amount: u64, final_token: String, trust_anchor: String, no_of_tokens: u64) {
+        let token = final_token;
+        while (no_of_tokens > 0) {
+            token = keccak256(vector[token]);
+            no_of_tokens = no_of_tokens - 1;
+        };
+    }
 }
