@@ -7,6 +7,7 @@ module self::micropayment_hash{
     use aptos_framework::aptos_coin::AptosCoin;
     use std::vector;
     use aptos_std::aptos_hash::keccak256;
+    use std::option::{Self, Option};
 
     const MODULE_OWNER:address = @self;
 
@@ -15,7 +16,7 @@ module self::micropayment_hash{
 
 
 
-    struct Channel has store, drop{
+    struct Channel has store, drop, key{
         channel_id: u64,
         sender_address: address,
         receiver_address: address,
@@ -23,11 +24,12 @@ module self::micropayment_hash{
         total_tokens: u64,
         redeemed: bool,
         trust_anchor: String,
+        signer_cap: account::SignerCapability,
     }
 
     struct GlobalTable has key {
         channel_table: Table<u64, Channel>,
-        channel_counter:u64
+        channel_counter:u64,
     }
 
     public entry fun init_deploy(deployer: &signer) {
@@ -46,8 +48,19 @@ module self::micropayment_hash{
         move_to(deployer, GlobalTable {
             // store details of channels into a table
             channel_table: table::new(),
-            channel_counter: 0
+            channel_counter: 0,
         });
+
+        // move_to(deployer, Channel{
+        //     channel_id: 0,
+        //     sender_address: option::none(),
+        //     receiver_address: option::none(),
+        //     initial_amount: 0,
+        //     total_tokens: 0,
+        //     redeemed: false,
+        //     trust_anchor: String::new(),
+        //     signer_cap: signer_cap
+        // });
     }
 
     public entry fun create_channel (sender: &signer, receiver_address: address, initial_amount: u64,total_tokens:u64,  trust_anchor: String) acquires GlobalTable {
@@ -67,14 +80,15 @@ module self::micropayment_hash{
             initial_amount: initial_amount,
             total_tokens: total_tokens,
             trust_anchor: trust_anchor,
-            redeemed: false
+            redeemed: false,
+            signer_cap: signer_cap,
         };
         // self::set_channel(sender_address, receiver_address, channel);
         table::upsert(&mut global_table_resource.channel_table, counter, new_channel);
         global_table_resource.channel_counter = counter;
     }
 
-    public entry fun redeem_channel (final_token: String, no_of_tokens: u64, channel_id: u64) acquires GlobalTable {
+    public entry fun redeem_channel (final_token: String, no_of_tokens: u64, channel_id: u64) acquires GlobalTable, Channel {
 
         let global_table_resource = borrow_global_mut<GlobalTable>(MODULE_OWNER);
         let channel = table::borrow_mut(&mut global_table_resource.channel_table, channel_id);
@@ -82,14 +96,27 @@ module self::micropayment_hash{
         let initial_amount = channel.initial_amount;
         let trust_anchor_vec = *std::string::bytes(&channel.trust_anchor);
 
-        let hash = calculate_hash(final_token, channel.trust_anchor, no_of_tokens, channel_id);
+        let channel_resource = borrow_global_mut<Channel>(MODULE_OWNER);
+ 
+        let rsrc_acc_signer = account::create_signer_with_capability(channel_resource.signer_cap);
+        let rsrc_acc_address = signer::address_of(&rsrc_acc_signer);
+
+
+        // let hash = calculate_hash(final_token, channel.trust_anchor, no_of_tokens, channel_id);
+        let input = *std::string::bytes(&final_token);
+        let hash = keccak256(input);
+        while (no_of_tokens > 1) {
+            hash = keccak256(input);
+            no_of_tokens = no_of_tokens - 1;
+            input = hash;
+        };
 
         if(hash == trust_anchor_vec){
             let receiver_amount = (no_of_tokens/total_tokens) * initial_amount;
             let sender_amount = initial_amount - receiver_amount;
-
-            coin::transfer<AptosCoin>(MODULE_OWNER, channel.receiver_address, receiver_amount);
-            coin::transfer<AptosCoin>(MODULE_OWNER, channel.sender_address, sender_amount);
+            // Get resource account - get_rsrc_account(): (signer, address)
+            coin::transfer<AptosCoin>(&rsrc_acc_signer, channel.receiver_address, receiver_amount);
+            coin::transfer<AptosCoin>(&rsrc_acc_signer, channel.sender_address, sender_amount);
 
             channel.redeemed = true;
         }
@@ -99,15 +126,21 @@ module self::micropayment_hash{
         }
     }
 
-    fun calculate_hash ( final_token: String, trust_anchor: String, no_of_tokens: u64, channel_id: u64): bool {
-        let input = *std::string::bytes(&final_token);
-        let hash = keccak256(input);
-        while (no_of_tokens > 1) {
-            hash = keccak256(input);
-            no_of_tokens = no_of_tokens - 1;
-            input = hash;
-        };
-        hash;
+    // fun calculate_hash ( final_token: String, trust_anchor: String, no_of_tokens: u64, channel_id: u64): bool {
+    //     let input = *std::string::bytes(&final_token);
+    //     let hash = keccak256(input);
+    //     while (no_of_tokens > 1) {
+    //         hash = keccak256(input);
+    //         no_of_tokens = no_of_tokens - 1;
+    //         input = hash;
+    //     };
+    //     hash;
         
-    }
+    // }
+    // fun get_rsrc_account(): (signer, address) {
+
+    //     let rsrc_acc_signer = account::create_signer_with_capability(&);
+    //     let rsrc_acc_address = signer::address_of(&rsrc_acc_signer);
+    //     (rsrc_acc_signer, rsrc_acc_address)
+    // }
 }
