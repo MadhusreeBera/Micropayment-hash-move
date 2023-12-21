@@ -14,6 +14,7 @@ module self::micropayment_hash{
     const ENO_SAME_SENDER_RECEIVER:u64 = 0;
     const ENO_NOT_MODULE_OWNER:u64 = 1;
     const E_CHANNEL_ALREADY_REDEEMED:u64 = 2;
+    const E_NOT_RECEIVER: u64 = 3;
 
 
     struct Channel has store, drop, key{
@@ -86,14 +87,16 @@ module self::micropayment_hash{
         global_table_resource.channel_counter = counter;
     }
 
-    public entry fun redeem_channel (final_token: String, no_of_tokens: u64, channel_id: u64) acquires GlobalTable, SignerCapabilityStore {
+    public entry fun redeem_channel (receiver: &signer,final_token: String, no_of_tokens: u64, channel_id: u64) acquires GlobalTable, SignerCapabilityStore {
 
-        // for redeemed = true
         
         let global_table_resource = borrow_global_mut<GlobalTable>(MODULE_OWNER);
         let channel = table::borrow_mut(&mut global_table_resource.channel_table, channel_id);
 
         assert!(channel.redeemed == true, E_CHANNEL_ALREADY_REDEEMED);
+
+        const receiver_address = signer::address_of(receiver);
+        assert(channel.receiver_address == receiver_address, E_NOT_RECEIVER);
         let total_tokens = channel.total_tokens;
         let initial_amount = channel.initial_amount;
         let trust_anchor_vec = *std::string::bytes(&channel.trust_anchor);
