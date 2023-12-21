@@ -103,9 +103,10 @@ module self::micropayment_hash{
         // let hash = calculate_hash(final_token, channel.trust_anchor, no_of_tokens, channel_id);
         let input = *std::string::bytes(&final_token);
         let hash = keccak256(input);
-        while (no_of_tokens > 1) {
+        let num = no_of_tokens;
+        while (num > 1) {
             hash = keccak256(input);
-            no_of_tokens = no_of_tokens - 1;
+            num = num - 1;
             input = hash;
         };
 
