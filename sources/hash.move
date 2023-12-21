@@ -58,14 +58,18 @@ module self::micropayment_hash{
         });
     }
 
-    public entry fun create_channel (sender: &signer, receiver_address: address, initial_amount: u64,total_tokens:u64,  trust_anchor: String) acquires GlobalTable {
+    public entry fun create_channel (sender: &signer, receiver_address: address, initial_amount: u64,total_tokens:u64,  trust_anchor: String) acquires GlobalTable, SignerCapabilityStore {
        let sender_address = signer::address_of(sender);
         let global_table_resource = borrow_global_mut<GlobalTable>(MODULE_OWNER);
         let counter = global_table_resource.channel_counter + 1;
         assert!(sender_address != receiver_address, ENO_SAME_SENDER_RECEIVER);
 
         // MOST IMPORTANT - take payment from sender and transfer to contract
-        coin::transfer<AptosCoin>(sender, MODULE_OWNER, initial_amount);
+
+        let signer_cap_resource = borrow_global_mut<SignerCapabilityStore>(MODULE_OWNER);
+        let rsrc_acc_signer = account::create_signer_with_capability(&signer_cap_resource.signer_cap);
+        let rsrc_acc_address = signer::address_of(&rsrc_acc_signer);
+        coin::transfer<AptosCoin>(sender, rsrc_acc_address, initial_amount);
 
         // assert!(self::channel_exists(sender_address, receiver_address) == false, "channel already exists");
         let new_channel = Channel {
@@ -119,22 +123,4 @@ module self::micropayment_hash{
             channel.redeemed = false;
         }
     }
-
-    // fun calculate_hash ( final_token: String, trust_anchor: String, no_of_tokens: u64, channel_id: u64): bool {
-    //     let input = *std::string::bytes(&final_token);
-    //     let hash = keccak256(input);
-    //     while (no_of_tokens > 1) {
-    //         hash = keccak256(input);
-    //         no_of_tokens = no_of_tokens - 1;
-    //         input = hash;
-    //     };
-    //     hash;
-        
-    // }
-    // fun get_rsrc_account(): (signer, address) {
-
-    //     let rsrc_acc_signer = account::create_signer_with_capability(&);
-    //     let rsrc_acc_address = signer::address_of(&rsrc_acc_signer);
-    //     (rsrc_acc_signer, rsrc_acc_address)
-    // }
 }
