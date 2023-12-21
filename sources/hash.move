@@ -13,7 +13,7 @@ module self::micropayment_hash{
 
     const ENO_SAME_SENDER_RECEIVER:u64 = 0;
     const ENO_NOT_MODULE_OWNER:u64 = 1;
-
+    const E_CHANNEL_ALREADY_REDEEMED:u64 = 2;
 
 
     struct Channel has store, drop, key{
@@ -84,8 +84,12 @@ module self::micropayment_hash{
 
     public entry fun redeem_channel (final_token: String, no_of_tokens: u64, channel_id: u64) acquires GlobalTable, SignerCapabilityStore {
 
+        // for redeemed = true
+        
         let global_table_resource = borrow_global_mut<GlobalTable>(MODULE_OWNER);
         let channel = table::borrow_mut(&mut global_table_resource.channel_table, channel_id);
+
+        assert!(channel.redeemed == true, E_CHANNEL_ALREADY_REDEEMED);
         let total_tokens = channel.total_tokens;
         let initial_amount = channel.initial_amount;
         let trust_anchor_vec = *std::string::bytes(&channel.trust_anchor);
@@ -120,21 +124,4 @@ module self::micropayment_hash{
         }
     }
 
-    // fun calculate_hash ( final_token: String, trust_anchor: String, no_of_tokens: u64, channel_id: u64): bool {
-    //     let input = *std::string::bytes(&final_token);
-    //     let hash = keccak256(input);
-    //     while (no_of_tokens > 1) {
-    //         hash = keccak256(input);
-    //         no_of_tokens = no_of_tokens - 1;
-    //         input = hash;
-    //     };
-    //     hash;
-        
-    // }
-    // fun get_rsrc_account(): (signer, address) {
-
-    //     let rsrc_acc_signer = account::create_signer_with_capability(&);
-    //     let rsrc_acc_address = signer::address_of(&rsrc_acc_signer);
-    //     (rsrc_acc_signer, rsrc_acc_address)
-    // }
 }
