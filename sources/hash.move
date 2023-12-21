@@ -93,10 +93,10 @@ module self::micropayment_hash{
         let global_table_resource = borrow_global_mut<GlobalTable>(MODULE_OWNER);
         let channel = table::borrow_mut(&mut global_table_resource.channel_table, channel_id);
 
-        assert!(channel.redeemed == true, E_CHANNEL_ALREADY_REDEEMED);
+        assert!(channel.redeemed == false, E_CHANNEL_ALREADY_REDEEMED);
 
-        const receiver_address = signer::address_of(receiver);
-        assert(channel.receiver_address == receiver_address, E_NOT_RECEIVER);
+        let receiver_address = signer::address_of(receiver);
+        assert!(channel.receiver_address == receiver_address, E_NOT_RECEIVER);
         let total_tokens = channel.total_tokens;
         let initial_amount = channel.initial_amount;
         let trust_anchor_vec = *std::string::bytes(&channel.trust_anchor);
