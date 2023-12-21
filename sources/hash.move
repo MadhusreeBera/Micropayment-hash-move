@@ -7,7 +7,7 @@ module self::micropayment_hash{
     use aptos_framework::aptos_coin::AptosCoin;
     use std::vector;
     use aptos_std::aptos_hash::keccak256;
-    use std::option::{Self, Option};
+    // use std::option::{Self, Option};
 
     const MODULE_OWNER:address = @self;
 
@@ -24,9 +24,11 @@ module self::micropayment_hash{
         total_tokens: u64,
         redeemed: bool,
         trust_anchor: String,
-        signer_cap: account::SignerCapability,
     }
 
+    struct SignerCapabilityStore has key{
+        signer_cap: account::SignerCapability
+    }
     struct GlobalTable has key {
         channel_table: Table<u64, Channel>,
         channel_counter:u64,
@@ -51,16 +53,9 @@ module self::micropayment_hash{
             channel_counter: 0,
         });
 
-        // move_to(deployer, Channel{
-        //     channel_id: 0,
-        //     sender_address: option::none(),
-        //     receiver_address: option::none(),
-        //     initial_amount: 0,
-        //     total_tokens: 0,
-        //     redeemed: false,
-        //     trust_anchor: String::new(),
-        //     signer_cap: signer_cap
-        // });
+        move_to(deployer, SignerCapabilityStore{
+            signer_cap
+        });
     }
 
     public entry fun create_channel (sender: &signer, receiver_address: address, initial_amount: u64,total_tokens:u64,  trust_anchor: String) acquires GlobalTable {
@@ -81,14 +76,13 @@ module self::micropayment_hash{
             total_tokens: total_tokens,
             trust_anchor: trust_anchor,
             redeemed: false,
-            signer_cap: signer_cap,
         };
         // self::set_channel(sender_address, receiver_address, channel);
         table::upsert(&mut global_table_resource.channel_table, counter, new_channel);
         global_table_resource.channel_counter = counter;
     }
 
-    public entry fun redeem_channel (final_token: String, no_of_tokens: u64, channel_id: u64) acquires GlobalTable, Channel {
+    public entry fun redeem_channel (final_token: String, no_of_tokens: u64, channel_id: u64) acquires GlobalTable, SignerCapabilityStore {
 
         let global_table_resource = borrow_global_mut<GlobalTable>(MODULE_OWNER);
         let channel = table::borrow_mut(&mut global_table_resource.channel_table, channel_id);
@@ -96,10 +90,10 @@ module self::micropayment_hash{
         let initial_amount = channel.initial_amount;
         let trust_anchor_vec = *std::string::bytes(&channel.trust_anchor);
 
-        let channel_resource = borrow_global_mut<Channel>(MODULE_OWNER);
+        let signer_cap_resource = borrow_global_mut<SignerCapabilityStore>(MODULE_OWNER);
  
-        let rsrc_acc_signer = account::create_signer_with_capability(channel_resource.signer_cap);
-        let rsrc_acc_address = signer::address_of(&rsrc_acc_signer);
+        let rsrc_acc_signer = account::create_signer_with_capability(&signer_cap_resource.signer_cap);
+        // let rsrc_acc_address = signer::address_of(&rsrc_acc_signer);
 
 
         // let hash = calculate_hash(final_token, channel.trust_anchor, no_of_tokens, channel_id);
