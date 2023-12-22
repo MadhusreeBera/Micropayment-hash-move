@@ -6,7 +6,8 @@ module self::micropayment_hash{
     use aptos_std::table::{Self, Table};
     use aptos_framework::aptos_coin::AptosCoin;
     use std::vector;
-    use aptos_std::aptos_hash::keccak256;
+    use std::hash;
+    // use aptos_std::aptos_hash::keccak256;
     // use std::option::{Self, Option};
 
     const MODULE_OWNER:address = @self;
@@ -109,15 +110,15 @@ module self::micropayment_hash{
 
         // let hash = calculate_hash(final_token, channel.trust_anchor, no_of_tokens, channel_id);
         let input = *std::string::bytes(&final_token);
-        let hash = keccak256(input);
+        let hash_value = hash::sha3_256(input);
         let num = no_of_tokens;
         while (num > 1) {
-            hash = keccak256(input);
+            hash_value = hash::sha3_256(input);
             num = num - 1;
-            input = hash;
+            input = hash_value;
         };
 
-        if(hash == trust_anchor_vec){
+        if(hash_value == trust_anchor_vec){
             let receiver_amount = (no_of_tokens/total_tokens) * initial_amount;
             let sender_amount = initial_amount - receiver_amount;
             // Get resource account - get_rsrc_account(): (signer, address)
