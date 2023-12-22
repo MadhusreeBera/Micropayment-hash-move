@@ -15,6 +15,7 @@ module self::micropayment_hash{
     const ENO_NOT_MODULE_OWNER:u64 = 1;
     const E_CHANNEL_ALREADY_REDEEMED:u64 = 2;
     const E_NOT_RECEIVER: u64 = 3;
+    const E_INVALID_TOKEN: u64 = 4;
 
 
     struct Channel has store, drop, key{
@@ -102,8 +103,9 @@ module self::micropayment_hash{
         let trust_anchor_vec = *std::string::bytes(&channel.trust_anchor);
 
         let signer_cap_resource = borrow_global_mut<SignerCapabilityStore>(MODULE_OWNER);
+        let (rsrc_acc_signer,  _rsrc_acc_address) = get_rsrc_acc(signer_cap_resource);
  
-        let rsrc_acc_signer = account::create_signer_with_capability(&signer_cap_resource.signer_cap);
+        // let rsrc_acc_signer = account::create_signer_with_capability(&signer_cap_resource.signer_cap);
         // let rsrc_acc_address = signer::address_of(&rsrc_acc_signer);
 
 
@@ -118,7 +120,7 @@ module self::micropayment_hash{
         };
 
         if(hash == trust_anchor_vec){
-            let receiver_amount = (no_of_tokens/total_tokens) * initial_amount;
+            let receiver_amount = (no_of_tokens * initial_amount)/total_tokens; 
             let sender_amount = initial_amount - receiver_amount;
             // Get resource account - get_rsrc_account(): (signer, address)
             coin::transfer<AptosCoin>(&rsrc_acc_signer, channel.receiver_address, receiver_amount);
@@ -127,9 +129,16 @@ module self::micropayment_hash{
             channel.redeemed = true;
         }
         else{
-
+            assert!(false, E_INVALID_TOKEN);
             channel.redeemed = false;
         }
+    }
+
+     fun get_rsrc_acc(signer_cap_resource: &SignerCapabilityStore): (signer, address) {
+        let rsrc_acc_signer = account::create_signer_with_capability(&signer_cap_resource.signer_cap);
+        let rsrc_acc_addr = signer::address_of(&rsrc_acc_signer);
+
+        (rsrc_acc_signer, rsrc_acc_addr)
     }
 
 }
